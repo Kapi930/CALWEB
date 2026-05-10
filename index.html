@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Calendario de Tareas</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Pantalla de configuración inicial -->
+<div id="setup-screen" class="screen active">
+  <div class="setup-container">
+    <h1>📅 Calendario de Tareas</h1>
+    <p class="subtitle">Conecta tu cuenta de Dropbox para sincronizar con tu PC.</p>
+
+    <div class="setup-section">
+      <h3>Paso 1: App Key</h3>
+      <p>Pega aquí el mismo <b>App Key</b> que usaste en tu PC:</p>
+      <input type="text" id="app-key" placeholder="App Key de Dropbox">
+    </div>
+
+    <div class="setup-section">
+      <button id="start-auth-btn" class="primary-btn">Autorizar acceso</button>
+    </div>
+
+    <div id="auth-step" class="setup-section hidden">
+      <h3>Paso 2: Código de autorización</h3>
+      <p>Se ha abierto Dropbox en otra pestaña. Inicia sesión, pulsa <b>Allow</b>, copia el código y pégalo aquí:</p>
+      <input type="text" id="auth-code" placeholder="Pega aquí el código">
+      <button id="finish-auth-btn" class="primary-btn">✅ Finalizar configuración</button>
+    </div>
+
+    <div id="setup-error" class="error hidden"></div>
+  </div>
+</div>
+
+<!-- Pantalla principal -->
+<div id="main-screen" class="screen">
+  <header class="app-header">
+    <div class="header-content">
+      <h1>📅 Mis Tareas</h1>
+      <div class="header-actions">
+        <span id="sync-status" class="sync-status">⏳</span>
+        <button id="theme-btn" class="icon-btn" title="Cambiar tema">🌙</button>
+        <button id="settings-btn" class="icon-btn" title="Ajustes">⚙</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Selector de fecha -->
+  <div class="date-selector">
+    <button id="prev-day" class="nav-btn">‹</button>
+    <div class="date-info">
+      <div id="date-main"></div>
+      <div id="date-sub"></div>
+    </div>
+    <button id="next-day" class="nav-btn">›</button>
+    <button id="today-btn" class="today-btn">Hoy</button>
+    <button id="calendar-btn" class="icon-btn" title="Ver calendario">📅</button>
+  </div>
+
+  <!-- Calendario desplegable (oculto por defecto) -->
+  <div id="calendar-popup" class="calendar-popup hidden">
+    <div class="calendar-header">
+      <button id="cal-prev-month" class="nav-btn">‹</button>
+      <span id="cal-title"></span>
+      <button id="cal-next-month" class="nav-btn">›</button>
+    </div>
+    <div class="calendar-weekdays">
+      <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+    </div>
+    <div id="calendar-grid" class="calendar-grid"></div>
+  </div>
+
+  <!-- Selector de agrupación y pestañas -->
+  <div class="tabs-row">
+    <div class="tabs">
+      <button class="tab active" data-tab="pending">⏳ <span id="pending-count">0</span></button>
+      <button class="tab" data-tab="done">✅ <span id="done-count">0</span></button>
+    </div>
+    <select id="group-select">
+      <option value="category">📂 Por categoría</option>
+      <option value="priority">🏷 Por prioridad</option>
+    </select>
+  </div>
+
+  <!-- Lista de tareas -->
+  <main id="tasks-container" class="tasks-container">
+    <div id="tasks-list"></div>
+    <div id="empty-state" class="empty-state hidden">
+      <div class="empty-icon">✨</div>
+      <p>No hay tareas aquí</p>
+    </div>
+  </main>
+
+  <!-- Botón flotante añadir -->
+  <button id="fab-add" class="fab" title="Añadir tarea">➕</button>
+</div>
+
+<!-- Modal: Editor de tareas -->
+<div id="task-modal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="task-modal-title">Nueva tarea</h2>
+      <button class="close-btn" data-close="task-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <label>Título</label>
+      <input type="text" id="task-title" placeholder="Ej: Reunión con el equipo">
+
+      <label>Prioridad</label>
+      <select id="task-priority">
+        <option value="urgente">🔴 Urgente</option>
+        <option value="alta">🟠 Alta</option>
+        <option value="media" selected>🔵 Media</option>
+        <option value="baja">🟢 Baja</option>
+      </select>
+
+      <label>Categoría</label>
+      <div class="row">
+        <select id="task-category" style="flex:1"></select>
+        <button id="new-cat-btn" class="secondary-btn">+ Nueva</button>
+      </div>
+
+      <label>
+        <input type="checkbox" id="task-has-time"> Recordatorio a las
+        <input type="time" id="task-time" disabled>
+      </label>
+
+      <label>Notas</label>
+      <textarea id="task-notes" rows="3" placeholder="Notas adicionales..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="secondary-btn" data-close="task-modal">Cancelar</button>
+      <button id="save-task-btn" class="primary-btn">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Ajustes -->
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>⚙ Ajustes</h2>
+      <button class="close-btn" data-close="settings-modal">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h3>☁️ Sincronización</h3>
+        <p id="sync-account">Cargando...</p>
+        <button id="sync-now-btn" class="secondary-btn">🔄 Sincronizar ahora</button>
+        <button id="disconnect-btn" class="danger-btn">🔌 Desconectar Dropbox</button>
+      </div>
+      <div class="settings-section">
+        <h3>📂 Categorías</h3>
+        <div id="categories-list"></div>
+        <button id="add-cat-btn" class="secondary-btn">➕ Nueva categoría</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalle de tarea (con subtareas) -->
+<div id="detail-modal" class="modal hidden">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="detail-title">Tarea</h2>
+      <button class="close-btn" data-close="detail-modal">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+    <div class="modal-footer">
+      <button id="edit-task-btn" class="secondary-btn">✏ Editar</button>
+      <button id="delete-task-btn" class="danger-btn">🗑 Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast de notificaciones -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- Librerías -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.min.js"></script>
+<script src="dropbox.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
