@@ -12,7 +12,7 @@ const DB = {
     // Cargar sql.js
     if (!this.SQL) {
       this.SQL = await initSqlJs({
-        locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`
+        locateFile: f => f
       });
     }
   },
