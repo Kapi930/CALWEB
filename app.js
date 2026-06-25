@@ -770,10 +770,10 @@ const App = {
   }
 };
 
-// Service worker para PWA
+// Desregistrar cualquier Service Worker antiguo que pueda estar bloqueando peticiones
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(e => console.log('SW error', e));
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    for (const reg of regs) reg.unregister();
   });
 }
 
