@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limpiar caché</title>
+  <style>
+    body { font-family: sans-serif; padding: 30px; background: #1e1b4b; color: white; text-align: center; }
+    h1 { font-size: 1.5em; }
+    #log { margin-top: 20px; background: #312e81; padding: 15px; border-radius: 10px; text-align: left; font-size: 0.9em; line-height: 1.8; }
+    .ok { color: #34d399; }
+    .err { color: #f87171; }
+    a { display: inline-block; margin-top: 20px; padding: 12px 24px; background: #6d28d9; color: white; border-radius: 8px; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🧹 Limpiando caché...</h1>
+  <div id="log"></div>
+  <div id="link"></div>
+
+  <script>
+    const log = document.getElementById('log');
+    function add(msg, ok = true) {
+      const p = document.createElement('p');
+      p.className = ok ? 'ok' : 'err';
+      p.textContent = (ok ? '✅ ' : '❌ ') + msg;
+      log.appendChild(p);
+    }
+
+    async function clean() {
+      // 1. Desregistrar todos los Service Workers
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        if (regs.length === 0) {
+          add('No hay Service Workers registrados');
+        }
+        for (const reg of regs) {
+          await reg.unregister();
+          add('Service Worker desregistrado: ' + reg.scope);
+        }
+      } else {
+        add('Service Workers no soportados', false);
+      }
+
+      // 2. Borrar todas las cachés
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        if (keys.length === 0) {
+          add('No hay cachés que borrar');
+        }
+        for (const key of keys) {
+          await caches.delete(key);
+          add('Caché eliminada: ' + key);
+        }
+      } else {
+        add('Cache API no soportada', false);
+      }
+
+      // 3. Mostrar enlace para volver
+      add('¡Listo! Ahora abre la app de nuevo.');
+      document.getElementById('link').innerHTML =
+        '<a href="https://kapi930.github.io/CALWEB/">▶ Abrir CALWEB</a>';
+    }
+
+    clean().catch(e => add('Error: ' + e.message, false));
+  </script>
+</body>
+</html>
