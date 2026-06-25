@@ -122,7 +122,7 @@ const App = {
       }
     } catch (e) {
       console.error(e);
-      this._toast('Error al sincronizar: ' + e.message);
+      this._toast('Error: ' + (e.message || JSON.stringify(e)));
       DB.createEmpty();
       DB.isDirty = false;
     }
@@ -782,7 +782,7 @@ const App = {
     el.textContent = msg;
     el.classList.remove('hidden');
     clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => el.classList.add('hidden'), 2500);
+    this._toastTimer = setTimeout(() => el.classList.add('hidden'), 8000);
   }
 };
 
