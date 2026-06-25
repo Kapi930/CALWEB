@@ -110,6 +110,21 @@ const App = {
     this._setSyncStatus('🔄');
     let downloadedFromDropbox = false;
     try {
+      // Debug: mostrar estado del token
+      const hasAccess = Boolean(DBX.state.accessToken);
+      const hasRefresh = Boolean(DBX.state.refreshToken);
+      const hasKey = Boolean(DBX.state.appKey);
+      this._toast(`Token: access=${hasAccess} refresh=${hasRefresh} key=${hasKey}`);
+      await new Promise(r => setTimeout(r, 3000)); // Esperar 3s para leer el toast
+
+      // Verificar token primero
+      if (!hasAccess && !hasRefresh) {
+        throw new Error('Sin token. Reconecta Dropbox.');
+      }
+      // Refrescar token si no hay access token
+      if (!hasAccess && hasRefresh) {
+        await DBX.refreshAccessToken();
+      }
       // Intentar descargar la BD
       const result = await DBX.download();
       if (result) {
