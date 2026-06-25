@@ -1,5 +1,5 @@
-/* Service Worker - cache para funcionamiento offline */
-const CACHE = 'calendario-tareas-v1';
+/* Service Worker - caché para funcionamiento fuera de línea */
+const CACHE = 'calendario-tareas-v2';
 const URLS = [
   './',
   './index.html',
@@ -10,14 +10,14 @@ const URLS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.wasm'
+  './sql-wasm.min.js',
+  './sql-wasm.wasm'
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(URLS).catch(err => {
-      console.log('Cache error:', err);
+      console.log('Error de caché:', err);
     }))
   );
   self.skipWaiting();
@@ -33,14 +33,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Las APIs de Dropbox NO se cachean
+  // Las API de Dropbox NO se cachean — van directo a la red
   if (e.request.url.includes('dropboxapi.com') ||
       e.request.url.includes('dropbox.com')) {
-    return; // Pasa directo a la red
+    return;
   }
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request).then(resp => {
-      // Cachear respuestas exitosas
+      // Guardar en caché las respuestas exitosas
       if (resp.ok && e.request.method === 'GET') {
         const clone = resp.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
