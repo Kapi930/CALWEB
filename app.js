@@ -57,9 +57,25 @@ const App = {
       }
       try {
         const url = await DBX.startAuth(appKey);
-        window.open(url, '_blank');
+        // En móvil los popups se bloquean — mostrar enlace para abrir manualmente
         document.getElementById('auth-step').classList.remove('hidden');
         document.getElementById('start-auth-btn').textContent = 'Reabrir página de Dropbox';
+        // Intentar abrir en nueva pestaña, si falla mostrar el enlace
+        const newTab = window.open(url, '_blank');
+        if (!newTab) {
+          // Popup bloqueado — mostrar enlace clicable
+          const authStep = document.getElementById('auth-step');
+          const existingLink = authStep.querySelector('.dbx-link');
+          if (!existingLink) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.className = 'dbx-link';
+            link.style.cssText = 'display:block;margin:10px 0;padding:10px;background:#0061fe;color:white;text-align:center;border-radius:8px;text-decoration:none;font-weight:bold;';
+            link.textContent = '👆 Pulsa aquí para abrir Dropbox';
+            authStep.insertBefore(link, authStep.firstChild);
+          }
+        }
       } catch (e) {
         this._showSetupError(`Error: ${e.message}`);
       }
