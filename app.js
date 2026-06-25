@@ -92,31 +92,39 @@ const App = {
     document.getElementById('main-screen').classList.add('active');
 
     this._setSyncStatus('🔄');
+    let downloadedFromDropbox = false;
     try {
       // Intentar descargar la BD
       const result = await DBX.download();
       if (result) {
         DB.loadFromBytes(result.buffer);
+        downloadedFromDropbox = true;
       } else {
+        // No existe en Dropbox aún — crear vacía pero NO subir hasta que haya tareas reales
         DB.createEmpty();
-        await this._uploadDB();
       }
     } catch (e) {
       console.error(e);
       this._toast('Error al sincronizar: ' + e.message);
+      // En caso de error de red, crear BD vacía local SIN subir nada
       DB.createEmpty();
+      DB.isDirty = false;
     }
 
-    // Rollover automático
-    const moved = DB.rolloverUnfinished();
-    if (moved > 0) {
-      DB.isDirty = true;
-      this._toast(`🔄 ${moved} tarea(s) trasladadas a hoy`);
+    // Rollover automático (solo si descargamos correctamente de Dropbox)
+    if (downloadedFromDropbox) {
+      const moved = DB.rolloverUnfinished();
+      if (moved > 0) {
+        this._toast(`🔄 ${moved} tarea(s) trasladadas a hoy`);
+      }
     }
 
-    // Si hubo cambios (rollover o BD nueva), subir
-    if (DB.isDirty) {
+    // Solo subir si hay tareas reales (protección anti-borrado)
+    const taskCount = DB.query('SELECT COUNT(*) AS c FROM tasks')[0]?.c || 0;
+    if (DB.isDirty && taskCount > 0) {
       await this._uploadDB();
+    } else {
+      DB.isDirty = false;
     }
 
     this._setSyncStatus('✓');
@@ -159,6 +167,13 @@ const App = {
 
   async _uploadDB() {
     if (this.state.syncing) return;
+    // Protección: nunca subir una BD vacía (evita borrar datos reales en Dropbox)
+    const taskCount = DB.query('SELECT COUNT(*) AS c FROM tasks')[0]?.c || 0;
+    if (taskCount === 0) {
+      console.warn('Subida cancelada: BD local sin tareas');
+      DB.isDirty = false;
+      return;
+    }
     try {
       this.state.syncing = true;
       this._setSyncStatus('🔄');
