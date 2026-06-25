@@ -106,19 +106,27 @@ const DBX = {
 
   async refreshAccessToken() {
     if (!this.state.refreshToken || !this.state.appKey) {
-      throw new Error('No hay refresh token');
+      throw new Error('No hay refresh token o app key');
     }
     const params = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: this.state.refreshToken,
       client_id: this.state.appKey
     });
-    const r = await fetch('https://api.dropboxapi.com/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: params.toString()
-    });
-    if (!r.ok) throw new Error('No se pudo refrescar el token');
+    let r;
+    try {
+      r = await fetch('https://api.dropboxapi.com/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString()
+      });
+    } catch (e) {
+      throw new Error(`refresh fetch falló: ${e.message} (${e.name})`);
+    }
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(`refresh HTTP ${r.status}: ${txt}`);
+    }
     const data = await r.json();
     this.state.accessToken = data.access_token;
     this.save();
