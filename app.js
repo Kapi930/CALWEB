@@ -115,14 +115,14 @@ const App = {
       if (result) {
         DB.loadFromBytes(result.buffer);
         downloadedFromDropbox = true;
+        const count = DB.query('SELECT COUNT(*) AS c FROM tasks')[0]?.c || 0;
+        this._toast(`📥 Descargado: ${result.buffer.length} bytes, ${count} tareas`);
       } else {
-        // No existe en Dropbox aún — crear vacía pero NO subir hasta que haya tareas reales
         DB.createEmpty();
       }
     } catch (e) {
       console.error(e);
       this._toast('Error al sincronizar: ' + e.message);
-      // En caso de error de red, crear BD vacía local SIN subir nada
       DB.createEmpty();
       DB.isDirty = false;
     }
