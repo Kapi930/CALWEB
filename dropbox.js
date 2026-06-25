@@ -166,15 +166,21 @@ const DBX = {
   },
 
   async download(path = this.DB_PATH) {
-    const r = await this._apiCall('https://content.dropboxapi.com/2/files/download', {
-      method: 'POST',
-      headers: {
-        'Dropbox-API-Arg': JSON.stringify({ path })
-      }
-    });
+    let r;
+    try {
+      r = await this._apiCall('https://content.dropboxapi.com/2/files/download', {
+        method: 'POST',
+        headers: {
+          'Dropbox-API-Arg': JSON.stringify({ path })
+        }
+      });
+    } catch (fetchErr) {
+      throw new Error(`fetch falló: ${fetchErr.message} (${fetchErr.name})`);
+    }
     if (!r.ok) {
       if (r.status === 409) return null;
-      throw new Error(`Error descarga: ${await r.text()}`);
+      const txt = await r.text();
+      throw new Error(`HTTP ${r.status}: ${txt}`);
     }
     const meta = JSON.parse(r.headers.get('dropbox-api-result') || '{}');
     const buffer = await r.arrayBuffer();
