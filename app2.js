@@ -110,19 +110,8 @@ const App = {
     this._setSyncStatus('🔄');
     let downloadedFromDropbox = false;
     try {
-      // Debug: mostrar estado del token
-      const hasAccess = Boolean(DBX.state.accessToken);
-      const hasRefresh = Boolean(DBX.state.refreshToken);
-      const hasKey = Boolean(DBX.state.appKey);
-      this._toast(`Token: access=${hasAccess} refresh=${hasRefresh} key=${hasKey}`);
-      await new Promise(r => setTimeout(r, 3000)); // Esperar 3s para leer el toast
-
-      // Verificar token primero
-      if (!hasAccess && !hasRefresh) {
-        throw new Error('Sin token. Reconecta Dropbox.');
-      }
       // Refrescar token si no hay access token
-      if (!hasAccess && hasRefresh) {
+      if (!DBX.state.accessToken && DBX.state.refreshToken) {
         await DBX.refreshAccessToken();
       }
       // Intentar descargar la BD
@@ -130,14 +119,12 @@ const App = {
       if (result) {
         DB.loadFromBytes(result.buffer);
         downloadedFromDropbox = true;
-        const count = DB.query('SELECT COUNT(*) AS c FROM tasks')[0]?.c || 0;
-        this._toast(`📥 Descargado: ${result.buffer.length} bytes, ${count} tareas`);
       } else {
         DB.createEmpty();
       }
     } catch (e) {
       console.error(e);
-      this._toast('Error: ' + (e.message || JSON.stringify(e)));
+      this._toast('Error al sincronizar: ' + e.message);
       DB.createEmpty();
       DB.isDirty = false;
     }
@@ -797,7 +784,7 @@ const App = {
     el.textContent = msg;
     el.classList.remove('hidden');
     clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => el.classList.add('hidden'), 8000);
+    this._toastTimer = setTimeout(() => el.classList.add('hidden'), 2500);
   }
 };
 
