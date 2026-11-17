@@ -15,7 +15,7 @@ document.getElementById('update').onclick=async()=>{
 };
 function active(registration){return new Promise((resolve,reject)=>{
  const deadline=setTimeout(()=>reject(new Error('La descarga no terminó. Comprueba Internet y reintenta.')),30000);
- const check=()=>{const worker=registration.installing||registration.waiting;if(worker){if(worker.state==='redundant'){clearTimeout(deadline);reject(new Error('La descarga fue rechazada. Reintenta.'));return;}worker.addEventListener('statechange',check,{once:true});return;}if(registration.active?.state==='activated'){clearTimeout(deadline);resolve();}};
+ const check=()=>{const worker=registration.installing||registration.waiting||registration.active;if(worker?.state==='redundant'){clearTimeout(deadline);reject(new Error('La descarga fue rechazada. Reintenta.'));return;}if(worker?.state==='activated'){clearTimeout(deadline);resolve();return;}worker?.addEventListener('statechange',check,{once:true});};
  registration.addEventListener('updatefound',check);check();
 });}
 </script></body></html>
