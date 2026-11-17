@@ -28,9 +28,10 @@
     }
 
     async function clean() {
-      // 1. Desregistrar todos los Service Workers
+      // 1. Desregistrar solo el servicio de CALWEB
       if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
+        const ownScope = new URL('./', location.href).href;
+        const regs = (await navigator.serviceWorker.getRegistrations()).filter(reg => reg.scope === ownScope);
         if (regs.length === 0) {
           add('No hay Service Workers registrados');
         }
@@ -42,9 +43,9 @@
         add('Service Workers no soportados', false);
       }
 
-      // 2. Borrar todas las cachés
+      // 2. Borrar solo las cachés estáticas de CALWEB
       if ('caches' in window) {
-        const keys = await caches.keys();
+        const keys = (await caches.keys()).filter(key => key.startsWith('calendario-tareas-'));
         if (keys.length === 0) {
           add('No hay cachés que borrar');
         }
@@ -66,3 +67,4 @@
   </script>
 </body>
 </html>
+

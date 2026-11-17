@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Actualizar DT y CALWEB</title><style>body{margin:30px auto;padding:0 20px;max-width:480px;background:#585858;color:#f2f2f2;font:15px Tahoma,Arial,sans-serif;line-height:1.5}button,a{display:block;padding:14px;margin:18px 0;background:#315f8c;border:1px solid #afc5da;color:white;font:inherit;text-align:center;text-decoration:none}button:disabled{opacity:.65}a[hidden]{display:none}</style></head>
+<body><h1>Actualizar DT y CALWEB</h1><p>Repara los servicios de ambas aplicaciones conservando la conexión con Dropbox, los datos y los envíos pendientes del móvil.</p><p id="status" role="status">Pulsa Actualizar con conexión a Internet.</p><button id="update">Actualizar aplicaciones</button><a id="open" href="./index.html?v=dt-5" hidden>Abrir DT</a><p>Si Chrome sigue ofreciendo abrir Tareas, abre CALWEB y ciérralo para que actualice su instalación. Después vuelve a DT en Chrome y elige Instalar aplicación.</p><script>
+document.getElementById('update').onclick=async()=>{
+ const button=document.getElementById('update'),status=document.getElementById('status');button.disabled=true;
+ try{
+  if(!('serviceWorker' in navigator))throw new Error('Abre esta página en Chrome actualizado.');
+  status.textContent='Actualizando CALWEB…';
+  const calweb=await navigator.serviceWorker.register('../sw.js',{scope:'../',updateViaCache:'none'});await calweb.update();
+  await active(calweb);
+  status.textContent='Actualizando DT…';
+  const dt=await navigator.serviceWorker.register('./sw.js',{scope:'./',updateViaCache:'none'});await dt.update();await active(dt);
+  status.textContent='Servicios actualizados. Abre DT para cargar la nueva interfaz. La instalación de Chrome puede tardar en recoger el nuevo ámbito de CALWEB.';document.getElementById('open').hidden=false;
+ }catch(error){status.textContent='No se pudo completar la actualización: '+error.message;button.disabled=false;}
+};
+function active(registration){return new Promise((resolve,reject)=>{
+ const deadline=setTimeout(()=>reject(new Error('La descarga no terminó. Comprueba Internet y reintenta.')),30000);
+ const check=()=>{const worker=registration.installing||registration.waiting;if(worker){if(worker.state==='redundant'){clearTimeout(deadline);reject(new Error('La descarga fue rechazada. Reintenta.'));return;}worker.addEventListener('statechange',check,{once:true});return;}if(registration.active?.state==='activated'){clearTimeout(deadline);resolve();}};
+ registration.addEventListener('updatefound',check);check();
+});}
+</script></body></html>

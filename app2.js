@@ -788,11 +788,11 @@ const App = {
   }
 };
 
-// Desregistrar cualquier Service Worker antiguo que pueda estar bloqueando peticiones
+// CALWEB conserva su servicio y nunca desregistra el de DT.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    for (const reg of regs) reg.unregister();
-  });
+  navigator.serviceWorker.register('./sw.js', {scope:'./', updateViaCache:'none'})
+    .then(registration => registration.update())
+    .catch(error => console.warn('No se pudo actualizar CALWEB sin conexión.', error));
 }
 
 // Antes de cerrar/recargar, intentar subir cambios pendientes
@@ -810,3 +810,4 @@ window.addEventListener('beforeunload', () => {
 
 // Init
 window.addEventListener('DOMContentLoaded', () => App.init());
+

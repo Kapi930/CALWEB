@@ -22,6 +22,20 @@ export class DesktopUI{
   this.search=el('input');this.search.type='search';this.search.placeholder='Buscar en la vista';this.search.setAttribute('aria-label','Buscar en la vista');this.search.addEventListener('input',()=>{this.filter=this.search.value;this.renderContent();});
   const toolbar=$('workspace').querySelector('.toolbar');toolbar.append(this.search);toolbar.prepend(this.button('Anterior',()=>this.changeMonth(-1)),this.button('Hoy',()=>this.setMonth(this.ctx.today().slice(0,7))),this.button('Siguiente',()=>this.changeMonth(1)));
   $('new').textContent='Nuevo parte';$('sync').textContent='Sincronizar';
+  this.navigator=el('details',undefined,'pc-date-navigator');this.navigator.open=window.matchMedia('(min-width:621px)').matches;
+  this.navigator.append(el('summary','Navegador de fechas'));this.mini=el('div',undefined,'pc-mini-month');this.navigator.append(this.mini);
+  this.legend=el('div',undefined,'pc-calendar-legend');
+  for(const [name,kind] of [['Parte enviado','enviado'],['Parte sin enviar','pendiente'],['Pendiente n.º obra','obra'],['Festivo / descanso','festivo'],['Vacaciones','vacaciones'],['Asuntos propios','asuntos']])this.legend.append(el('span',name,'pc-appointment pc-label-'+kind));
+  this.navigator.append(this.legend);
+  const calendar=$('calendario');this.monthTitle=el('h2',undefined,'pc-month-title');
+  const scheduler=el('div',undefined,'pc-scheduler');scheduler.append(this.monthTitle,$('calendar'),$('calendar-notes'));
+  calendar.querySelector('h2').remove();calendar.append(this.navigator,scheduler);calendar.classList.add('pc-calendar-layout');
+  const statusbar=el('div',undefined,'pc-statusbar');statusbar.append($('sync-info'));$('workspace').append(statusbar);
+  menu.addEventListener('toggle',event=>{if(event.target.open)for(const other of menu.querySelectorAll('details'))if(other!==event.target)other.open=false;},true);
+  document.addEventListener('click',event=>{if(!menu.contains(event.target))for(const item of menu.querySelectorAll('details'))item.open=false;});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const item of menu.querySelectorAll('details'))item.open=false;});
+  this.commandButtons=[...bar.querySelectorAll('button')];
+
  }
  get state(){return this.ctx.state();}get full(){return this.state?.completo;}get admin(){return this.full?.administrador===true;}
  button(text,action,cls){const button=el('button',text,cls);button.type='button';button.addEventListener('click',async()=>{try{await action();}catch(error){this.ctx.error(error);}});return button;}
@@ -41,6 +55,7 @@ export class DesktopUI{
   for(const button of $('workspace').querySelectorAll('[data-view]')){if(button.dataset.view===this.view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');}
   this.module.hidden=['partes','calendario','vacaciones'].includes(this.view);
   $('sync-info').textContent=`${this.ctx.cloud()?'Dropbox':'PC local'} · Datos del ${new Date(this.state.fecha*1000).toLocaleString('es-ES')} · ${this.ctx.pending().filter(p=>p.state!=='aplicado').length} envío(s) pendiente(s)`;
+  const views=['calendario','partes','obras','necesidades','cambios','usuarios'];for(const [i,button] of this.commandButtons.entries()){if(views[i]===this.view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');}
   this.renderContent();
  }
  renderContent(){
@@ -84,10 +99,27 @@ export class DesktopUI{
  async deleteSelected(){const p=this.requireSelection();if(p.id)await this.ctx.remove(p);else await this.openAdminDay(p.fecha,p.operario);}
  async exportDaily(rows){const ids=rows.map(p=>p.id_local).filter(Boolean);if(!ids.length)throw new Error('No hay partes confirmados en el escritorio para exportar.');await this.command('diario.exportar',{ids});}
  async markDaily(rows,enviado){const ids=this.selected?[this.selected.id_local]:rows.map(p=>p.id_local);if(!ids.length||ids.some(id=>!id))throw new Error('Primero confirma los partes con el escritorio.');await this.command('diario.estado',{ids,enviado});}
+ renderMiniCalendar(){
+  const month=$('month').value,[year,m]=month.split('-').map(Number);
+  const caption=new Date(year,m-1,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  this.monthTitle.textContent=caption;this.mini.replaceChildren();
+  const heading=el('div',undefined,'pc-mini-heading');heading.append(this.button('Anterior',()=>this.changeMonth(-1)),el('strong',caption),this.button('Siguiente',()=>this.changeMonth(1)));this.mini.append(heading);
+  const grid=el('div',undefined,'pc-mini-grid');for(const day of ['L','M','X','J','V','S','D'])grid.append(el('span',day,'pc-mini-weekday'));
+  const offset=(new Date(year,m-1,1).getDay()+6)%7;
+  for(let n=0;n<offset;n++)grid.append(el('span'));
+  const parts=this.visibleParts();
+  for(let d=1;d<=new Date(year,m,0).getDate();d++){
+    const value=month+'-'+String(d).padStart(2,'0'),button=this.button(String(d),()=>{this.day=value;this.view='partes';this.render();});
+    button.setAttribute('aria-label',new Date(year,m-1,d).toLocaleDateString('es-ES',{dateStyle:'full'}));
+    if(value===this.ctx.today())button.setAttribute('aria-current','date');
+    if(parts.some(part=>part.fecha===value))button.classList.add('pc-mini-has-parts');grid.append(button);
+  }this.mini.append(grid);
+ }
  renderCalendar(){
+  this.renderMiniCalendar();
   const parts=this.visibleParts();const queued=this.ctx.pending().filter(p=>p.kind!=='Comando'&&p.parte);
   this.ctx.calendar(parts,queued,this.worker);const cells=$('calendar').children;const month=$('month').value,[year,m]=month.split('-').map(Number),offset=(new Date(year,m-1,1).getDay()+6)%7;
-  for(let d=1;d<=new Date(year,m,0).getDate();d++){const cell=cells[7+offset+d-1],value=month+'-'+String(d).padStart(2,'0'),lines=parts.filter(p=>p.fecha===value);if(!cell)continue;cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',value+': '+lines.length+' apuntes');if(lines.length)cell.classList.add(lines.every(p=>p.entregado)?'pc-day-sent':'pc-day-pending');const open=()=>{this.day=value;this.view='partes';this.render();};cell.addEventListener('click',open);cell.addEventListener('keydown',e=>{if(e.key==='Enter')open();});}
+  for(let d=1;d<=new Date(year,m,0).getDate();d++){const cell=cells[7+offset+d-1],value=month+'-'+String(d).padStart(2,'0'),lines=parts.filter(p=>p.fecha===value);if(!cell)continue;cell.tabIndex=0;cell.setAttribute('role','button');cell.setAttribute('aria-label',value+': '+lines.length+' apuntes');if(lines.length)cell.classList.add(lines.every(p=>p.entregado)?'pc-day-sent':'pc-day-pending');const open=()=>{this.day=value;this.view='partes';this.render();};cell.addEventListener('click',open);cell.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});}
  }
  async command(accion,datos){if(!this.full?.acciones.includes(accion))throw new Error('Esta operación requiere actualizar los servicios del escritorio.');const requestId=this.submissionId;this.submissionId=undefined;return this.ctx.command(accion,datos,requestId);}
  documents(area,key,model,title,action){
